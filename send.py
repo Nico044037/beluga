@@ -42,9 +42,7 @@ async def sudo(ctx):
         "Commands:\n"
         "`$sudo startmessage`\n"
         "`$sudo stopmessage`\n"
-        "`$sudo nuke `\n"
         "`$sudo add`\n"
-        "`$sudo backdoor`\n"
         "`$sudo server rename <name>`"
     )
 
@@ -144,5 +142,6 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
