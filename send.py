@@ -2,149 +2,111 @@ import os
 import discord
 from discord.ext import commands
 from datetime import datetime
-import asyncio
+from urllib.parse import urlencode
 
-# ================= BASIC CONFIG =================
+# ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-MAIN_GUILD_ID = int(os.getenv("GUILD", "1452967364470505565"))
+
+OWNER_USERNAME = "nico044037"
+CLIENT_ID = os.getenv("CLIENT_ID")  # put your bot's CLIENT ID in Railway
 
 intents = discord.Intents.default()
-intents.message_content = True
 intents.members = True
+intents.message_content = True
 
 bot = commands.Bot(
-    command_prefix=["!", "?", "$"],
+    command_prefix=["$", "!", "?"],
     intents=intents,
     help_command=None
 )
-
-# ================= CONSTANTS =================
-ALLOWED_USER = "nico044037"
-TARGET_MENTION = "<@1419680644618780824>"
-
-# ================= STORAGE =================
-welcome_channel_id: int | None = None
-autoroles: set[int] = set()
-message_task: asyncio.Task | None = None
 
 # ================= READY =================
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
-# ================= RULES EMBED =================
-def rules_embed():
-    embed = discord.Embed(
-        title="📜 Server Rules",
-        color=discord.Color.red()
-    )
-    embed.add_field(
-        name="Rules",
-        value=(
-            "🤝 Be respectful\n"
-            "🚫 No spamming\n"
-            "🔞 No NSFW\n"
-            "📢 No advertising\n"
-            "👮 Staff decisions are final"
-        ),
-        inline=False
-    )
-    return embed
-
-# ================= SETUP =================
-@bot.command()
-@commands.has_permissions(manage_guild=True)
-async def setup(ctx, channel: discord.TextChannel):
-    if ctx.guild.id != MAIN_GUILD_ID:
-        return
-    global welcome_channel_id
-    welcome_channel_id = channel.id
-    await ctx.send(f"✅ Welcome channel set to {channel.mention}")
-
-# ================= SEND RULES =================
-@bot.command()
-async def send(ctx):
-    await ctx.send(embed=rules_embed())
-
-# ================= AUTOROLE =================
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def autorole(ctx, action: str, role: discord.Role):
-    if action.lower() == "add":
-        autoroles.add(role.id)
-        await ctx.send(f"✅ Added {role.mention}")
-    elif action.lower() == "remove":
-        autoroles.discard(role.id)
-        await ctx.send(f"❌ Removed {role.mention}")
-
-# ================= MEMBER JOIN =================
-@bot.event
-async def on_member_join(member: discord.Member):
-    if member.guild.id != MAIN_GUILD_ID:
-        return
-    for role_id in autoroles:
-        role = member.guild.get_role(role_id)
-        if role:
-            await member.add_roles(role)
-
-# ================= MESSAGE TASK =================
-async def spam_message(channel: discord.TextChannel):
-    try:
-        while True:
-            await channel.send(TARGET_MENTION)
-            await asyncio.sleep(0.5)  # SAFE interval
-    except asyncio.CancelledError:
-        pass
+# ================= OWNER CHECK =================
+def owner_only(ctx):
+    return ctx.author.name == OWNER_USERNAME
 
 # ================= SUDO GROUP =================
 @bot.group(name="sudo", invoke_without_command=True)
 async def sudo(ctx):
-    await ctx.send("❌ Usage: `$sudo <command>`")
+    await ctx.send("❌ usage: `$sudo askjoin | members`")
 
-# ================= START MESSAGE =================
-@sudo.command(name="startmessage")
-async def sudo_startmessage(ctx):
-    global message_task
-
-    if ctx.author.name != ALLOWED_USER:
-        await ctx.send("❌ Access denied")
+# ================= ASK TO JOIN =================
+@sudo.command(name="askjoin")
+async def sudo_askjoin(ctx):
+    if not owner_only(ctx):
+        await ctx.send("❌ access denied")
         return
 
-    if message_task and not message_task.done():
-        await ctx.send("❌ Already running")
+    if not CLIENT_ID:
+        await ctx.send("❌ CLIENT_ID not set")
         return
 
-    message_task = asyncio.create_task(spam_message(ctx.channel))
-    await ctx.send("✅ Message spam started")
+    params = {
+        "client_id": CLIENT_ID,
+        "scope": "bot applications.commands",
+        "permissions": "0",
+        "response_type": "code",
+        "integration_type": "0"
+    }
 
-# ================= STOP MESSAGE =================
-@sudo.command(name="stopmessage")
-async def sudo_stopmessage(ctx):
-    global message_task
+    oauth_url = "https://discord.com/oauth2/authorize?" + urlencode(params)
 
-    if ctx.author.name != ALLOWED_USER:
-        await ctx.send("❌ Access denied")
+    embed = discord.Embed(
+        title="🔐 Request Bot Join",
+        description=(
+            "Click the button below.\n\n"
+            "Discord will ask you to approve which **servers you manage** "
+            "this bot can join."
+        ),
+        color=discord.Color.blurple()
+    )
+
+    embed.add_field(
+        name="How it works",
+        value="Bot asks → You approve → Bot joins",
+        inline=False
+    )
+
+    await ctx.send(embed=embed)
+    await ctx.send(oauth_url)
+
+# ================= MEMBERS =================
+@sudo.command(name="members")
+async def sudo_members(ctx):
+    if not owner_only(ctx):
+        await ctx.send("❌ access denied")
         return
 
-    if not message_task:
-        await ctx.send("❌ No active task")
-        return
+    guild = ctx.guild
+    humans = len([m for m in guild.members if not m.bot])
+    bots = len([m for m in guild.members if m.bot])
 
-    message_task.cancel()
-    message_task = None
-    await ctx.send("🛑 Message spam stopped")
+    embed = discord.Embed(
+        title="👥 Member Count",
+        color=discord.Color.green(),
+        timestamp=datetime.utcnow()
+    )
+
+    embed.add_field(name="Server", value=guild.name, inline=False)
+    embed.add_field(name="Total", value=guild.member_count, inline=True)
+    embed.add_field(name="Humans", value=humans, inline=True)
+    embed.add_field(name="Bots", value=bots, inline=True)
+
+    await ctx.send(embed=embed)
 
 # ================= ERROR HANDLER =================
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    await ctx.send(f"❌ Error: {error}")
+    await ctx.send(f"❌ error: {error}")
 
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
-
-
