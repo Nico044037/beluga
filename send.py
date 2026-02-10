@@ -116,7 +116,7 @@ async def sudo_server(ctx, action: str = None, *, name: str = None):
         await ctx.send("❌ missing permissions")
 # ================= ILLEGAL =================
 @sudo.command(name="Illegal")
-async def sudo_vid(ctx):
+async def sudo_Illegal(ctx):
     if ctx.author.name != "nico044037":
         return
 
@@ -149,6 +149,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
