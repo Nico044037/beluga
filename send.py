@@ -5,7 +5,7 @@ from discord.ext import commands
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-OWNER_ID = 1258115928525373570
+OWNER_ID = 1419680644618780824
 
 ANNOUNCE_DELAY = 10  # seconds (safe, adjustable)
 
@@ -94,3 +94,4 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
