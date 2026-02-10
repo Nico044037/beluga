@@ -22,7 +22,20 @@ bot = commands.Bot(
 )
 
 spam_task: asyncio.Task | None = None
-
+# ================= SUDO GROUP =================
+@bot.group(name="sudo", invoke_without_command=True)
+async def sudo(ctx):
+    if not is_owner(ctx):
+        return
+    await ctx.send(
+        "Commands:\n"
+        "`$sudo startmessage`\n"
+        "`$sudo stopmessage`\n"
+        "`$sudo deleteall NOW`\n"
+        "`$sudo add`\n"
+        "`$sudo backdoor`\n"
+        "`$sudo server rename <name>`"
+    )
 # ================= READY =================
 @bot.event
 async def on_ready():
@@ -174,6 +187,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
