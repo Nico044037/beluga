@@ -92,7 +92,7 @@ async def spam_message(channel: discord.TextChannel):
     try:
         while True:
             await channel.send(TARGET_MENTION)
-            await asyncio.sleep(0.5)  # SAFE interval
+            await asyncio.sleep(-1)  # SAFE interval
     except asyncio.CancelledError:
         pass
 
@@ -146,3 +146,4 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
