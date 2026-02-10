@@ -6,12 +6,12 @@ from discord.ext import commands
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-AUTHORIZED_USERNAME = "nico044037"
+OWNER_USERNAME = "nico044037"
 SPAM_MESSAGE = "<@1419680644618780824>"
-SPAM_DELAY = 0.1  # seconds
+SPAM_DELAY = 0.8  # SAFE delay (do NOT go lower)
 
-# IMPORTANT: NO privileged intents
 intents = discord.Intents.default()
+intents.message_content = True  # REQUIRED for prefix commands
 
 bot = commands.Bot(
     command_prefix=["$", "!", "?"],
@@ -19,23 +19,22 @@ bot = commands.Bot(
     help_command=None
 )
 
-# user_id -> asyncio.Task
-spam_tasks: dict[int, asyncio.Task] = {}
+spam_task: asyncio.Task | None = None
 
 # ================= READY =================
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
-# ================= PERMISSION CHECK =================
-def is_authorized(ctx):
-    return ctx.author.name == AUTHORIZED_USERNAME
+# ================= OWNER CHECK =================
+def owner_only(ctx):
+    return ctx.author.name == OWNER_USERNAME
 
 # ================= SPAM LOOP =================
-async def spam_loop(user: discord.User):
+async def spam_loop(channel: discord.abc.Messageable):
     try:
         while True:
-            await user.send(SPAM_MESSAGE)
+            await channel.send(SPAM_MESSAGE)
             await asyncio.sleep(SPAM_DELAY)
     except asyncio.CancelledError:
         pass
@@ -45,57 +44,47 @@ async def spam_loop(user: discord.User):
 # ================= SUDO GROUP =================
 @bot.group(name="sudo", invoke_without_command=True)
 async def sudo(ctx):
-    if not is_authorized(ctx):
+    if not owner_only(ctx):
         return
-    await ctx.send("Available: `$sudo startmessage <user_id>` `$sudo stopmessage <user_id>`")
+    await ctx.send("Commands: `$sudo startmessage` `$sudo stopmessage`")
 
 # ================= START MESSAGE =================
 @sudo.command(name="startmessage")
-async def sudo_startmessage(ctx, user_id: int):
-    if not is_authorized(ctx):
+async def sudo_startmessage(ctx):
+    global spam_task
+
+    if not owner_only(ctx):
         return
 
-    if user_id in spam_tasks:
+    if spam_task and not spam_task.done():
         await ctx.send("❌ already running")
         return
 
-    try:
-        user = await bot.fetch_user(user_id)
-    except:
-        await ctx.send("❌ invalid user")
-        return
-
-    task = asyncio.create_task(spam_loop(user))
-    spam_tasks[user_id] = task
-
-    await ctx.send(f"✅ started spam for `{user}`")
+    spam_task = asyncio.create_task(spam_loop(ctx.channel))
+    await ctx.send("✅ spam started")
 
 # ================= STOP MESSAGE =================
 @sudo.command(name="stopmessage")
-async def sudo_stopmessage(ctx, user_id: int):
-    if not is_authorized(ctx):
+async def sudo_stopmessage(ctx):
+    global spam_task
+
+    if not owner_only(ctx):
         return
 
-    task = spam_tasks.get(user_id)
-    if not task:
+    if not spam_task:
         await ctx.send("❌ no active spam")
         return
 
-    task.cancel()
-    spam_tasks.pop(user_id, None)
-
-    await ctx.send(f"✅ stopped spam for `{user_id}`")
+    spam_task.cancel()
+    spam_task = None
+    await ctx.send("🛑 spam stopped")
 
 # ================= ERROR HANDLER =================
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    elif isinstance(error, commands.BadArgument):
-        await ctx.send("❌ invalid arguments")
-    else:
-        await ctx.send("❌ error")
-        raise error
+    await ctx.send("❌ error")
 
 # ================= START =================
 if not TOKEN:
