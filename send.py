@@ -13,8 +13,8 @@ SPAM_MESSAGE = "<@1419680644618780824>"
 SPAM_DELAY = 0.8  # SAFE delay (do not lower)
 
 intents = discord.Intents.default()
-intents.message_content = True  # required for prefix commands
-
+intents.message_content = True
+intents.members = True
 bot = commands.Bot(
     command_prefix=["$", "!", "?"],
     intents=intents,
@@ -126,6 +126,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
