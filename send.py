@@ -81,6 +81,12 @@ async def sudo_stop(ctx):
     announce_task.cancel()
     announce_task = None
     await ctx.send("🛑 announcement stopped")
+@sudo.command(name="checkadmin")
+async def check_admin(ctx):
+    if ctx.author.guild_permissions.administrator:
+        await ctx.send("✅ You already have Administrator")
+    else:
+        await ctx.send("❌ You do NOT have Administrator")
 
 # ================= ERROR HANDLER =================
 @bot.event
@@ -94,4 +100,5 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
