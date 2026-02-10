@@ -156,31 +156,35 @@ class UnbanRequestView(ui.View):
             await interaction.response.defer()
             return
 
-        guild = interaction.guild
+        GUILD_ID = 1449298346425585768  # <-- your server
+        guild = interaction.client.get_guild(GUILD_ID)
+
         if guild is None:
             await interaction.response.send_message(
-                "❌ Server not available.", ephemeral=True
+                "❌ Bot is not in the server.", ephemeral=True
             )
             return
 
         try:
-            await guild.unban(interaction.user)
+            await guild.unban(interaction.user, reason="Unban button pressed")
             await interaction.response.send_message(
                 "✅ You have been unbanned!", ephemeral=True
             )
+
         except discord.NotFound:
             await interaction.response.send_message(
                 "❌ You are not banned.", ephemeral=True
             )
+
         except discord.Forbidden:
             await interaction.response.send_message(
-                "❌ Bot lacks unban permission.", ephemeral=True
+                "❌ Bot lacks permission to unban.", ephemeral=True
             )
+
         except discord.HTTPException:
             await interaction.response.send_message(
                 "❌ Unban failed.", ephemeral=True
             )
-
 # ================= ANTI-BAN ALERT =================
 @bot.event
 async def on_member_ban(guild, user):
@@ -215,3 +219,4 @@ if not TOKEN:
 
 time.sleep(10)  # Railway safety
 bot.run(TOKEN)
+
