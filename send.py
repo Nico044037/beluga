@@ -139,7 +139,6 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 @bot.event
 async def on_message(message):
-    # ignore bots
     if message.author.bot:
         return
 
@@ -150,8 +149,11 @@ async def on_message(message):
 
     content = message.content.strip().split()
 
-    # expect: $unban <server_id>
+    # must be: $unban <server_id>
     if len(content) != 2 or content[0].lower() != "$unban":
+        await message.author.send(
+            "usage: `$unban <server_id>`"
+        )
         return
 
     try:
@@ -182,5 +184,5 @@ async def on_message(message):
                 return
 
     await message.author.send("ℹ️ you are not banned in that server")
-
 bot.run(TOKEN)
+
