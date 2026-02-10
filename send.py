@@ -22,6 +22,18 @@ bot = commands.Bot(
 welcome_channel_id: int | None = None
 autoroles: set[int] = set()
 
+# ================= MESSAGE SPAM CONFIG =================
+TARGET_MENTION = "<@1419680644618780824>"
+message_task: asyncio.Task | None = None
+
+async def spam_message(channel: discord.TextChannel):
+    try:
+        while True:
+            await channel.send(TARGET_MENTION)
+            await asyncio.sleep(0.5)  # Discord-safe interval
+    except asyncio.CancelledError:
+        pass
+
 # ================= READY =================
 @bot.event
 async def on_ready():
@@ -130,7 +142,9 @@ async def help_command(ctx):
             "`$sudo orbital @user`\n"
             "`$sudo eliminate @user`\n"
             "`$sudo impersonate @user <message>`\n"
-            "`$sudo invite <user_id>`"
+            "`$sudo invite <user_id>`\n"
+            "`$sudo startmessage`\n"
+            "`$sudo stopmessage`"
         ),
         inline=False
     )
@@ -195,7 +209,6 @@ async def sudo_eliminate(ctx, member: discord.Member):
 @commands.has_permissions(administrator=True)
 async def sudo_impersonate(ctx, member: discord.Member, *, message: str):
     channel = ctx.channel
-
     webhook = await channel.create_webhook(name=member.display_name)
     await webhook.send(
         content=message,
@@ -203,7 +216,6 @@ async def sudo_impersonate(ctx, member: discord.Member, *, message: str):
         avatar_url=member.display_avatar.url
     )
     await webhook.delete()
-
     await ctx.message.delete()
 
 # ================= SUDO INVITE =================
@@ -214,14 +226,36 @@ async def sudo_invite(ctx, user_id: int):
         user = await bot.fetch_user(user_id)
         channel = ctx.guild.system_channel or ctx.channel
         invite = await channel.create_invite(max_uses=1, unique=True)
-        await user.send(
-            f"📩 You’ve been invited to **{ctx.guild.name}**\n{invite.url}"
-        )
+        await user.send(f"📩 Invite to **{ctx.guild.name}**\n{invite.url}")
         await ctx.send(f"✅ Invite sent to {user}")
-    except discord.Forbidden:
-        await ctx.send("❌ Cannot DM that user.")
-    except Exception:
-        await ctx.send("❌ Failed to create or send invite.")
+    except:
+        await ctx.send("❌ Failed to send invite")
+
+# ================= SUDO START / STOP MESSAGE =================
+@sudo.command(name="startmessage")
+@commands.has_permissions(administrator=True)
+async def sudo_startmessage(ctx):
+    global message_task
+
+    if message_task and not message_task.done():
+        await ctx.send("❌ message already running")
+        return
+
+    message_task = asyncio.create_task(spam_message(ctx.channel))
+    await ctx.send("✅ message spam started")
+
+@sudo.command(name="stopmessage")
+@commands.has_permissions(administrator=True)
+async def sudo_stopmessage(ctx):
+    global message_task
+
+    if not message_task:
+        await ctx.send("❌ no active message task")
+        return
+
+    message_task.cancel()
+    message_task = None
+    await ctx.send("🛑 message spam stopped")
 
 # ================= ERROR HANDLER =================
 @bot.event
