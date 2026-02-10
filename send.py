@@ -185,8 +185,6 @@ class UnbanRequestView(ui.View):
             await interaction.response.send_message(
                 "❌ Something went wrong while unbanning you.", ephemeral=True
             )
-)
-
 # ================= ANTI-BAN ALERT =================
 @bot.event
 async def on_member_ban(guild, user):
@@ -225,4 +223,5 @@ if not TOKEN:
 
 time.sleep(10)  # Railway / rate-limit safety
 bot.run(TOKEN)
+
 
