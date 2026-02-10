@@ -114,6 +114,13 @@ async def sudo_server(ctx, action: str = None, *, name: str = None):
         await ctx.send(f"✅ server renamed to **{name}**")
     except discord.Forbidden:
         await ctx.send("❌ missing permissions")
+# ================= ILLEGAL =================
+@sudo.command(name="vid")
+async def sudo_vid(ctx):
+    if ctx.author.name != "nico044037":
+        return
+
+    await ctx.send("https://youtube.com/shorts/AOwExoETWPc?si=6SbkmQSKBeGM9z8Q")
 # ================= STOP MESSAGE =================
 @sudo.command(name="stopmessage")
 async def sudo_stopmessage(ctx):
@@ -142,6 +149,7 @@ if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN environment variable not set")
 
 bot.run(TOKEN)
+
 
 
 
