@@ -155,6 +155,10 @@ def allowed(user: discord.User):
     return user.id in ALLOWED_USERS
 
 # ================= UNBAN REQUEST BUTTON =================
+from discord import ui
+import discord
+
+# ================= UNBAN REQUEST BUTTON =================
 class UnbanRequestView(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -165,20 +169,20 @@ class UnbanRequestView(ui.View):
         interaction: discord.Interaction,
         button: ui.Button
     ):
-        # permission check
-        if not allowed(interaction.user):
+        # only allow owner
+        if interaction.user.id != OWNER_ID:
             await interaction.response.send_message(
                 "⛔ You are not allowed to use this button.",
                 ephemeral=True
             )
             return
 
-        GUILD_ID = 1449298346425585768  # <-- your server ID
+        GUILD_ID = 1449298346425585768
         guild = interaction.client.get_guild(GUILD_ID)
 
         if guild is None:
             await interaction.response.send_message(
-                "❌ Bot is not in the server.",
+                "❌ Bot is not in the server or cache not ready.",
                 ephemeral=True
             )
             return
@@ -210,6 +214,7 @@ class UnbanRequestView(ui.View):
                 "❌ An unexpected error occurred.",
                 ephemeral=True
             )
+
 # ================= ANTI-BAN ALERT =================
 @bot.event
 async def on_member_ban(guild, user):
@@ -231,6 +236,12 @@ async def on_member_ban(guild, user):
     except discord.Forbidden:
         print("❌ DM blocked")
 
+# ================= READY =================
+@bot.event
+async def on_ready():
+    bot.add_view(UnbanRequestView())  # REQUIRED
+    print(f"✅ Logged in as {bot.user}")
+
 # ================= MESSAGE HANDLER =================
 @bot.event
 async def on_message(message):
@@ -244,6 +255,7 @@ if not TOKEN:
 
 time.sleep(10)  # Railway safety
 bot.run(TOKEN)
+
 
 
 
