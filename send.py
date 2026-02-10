@@ -41,8 +41,6 @@ async def sudo(ctx):
         "Commands:\n"
         "`$sudo startmessage`\n"
         "`$sudo stopmessage`\n"
-        "`$sudo nuke now`\n"
-        "`$sudo backdoor`\n"
         "`$sudo add`"
     )
 
@@ -149,4 +147,5 @@ if not TOKEN:
 
 time.sleep(10)  # prevent Railway reconnect spam
 bot.run(TOKEN)
+
 
