@@ -143,14 +143,49 @@ class UnbanRequestView(ui.View):
         super().__init__(timeout=None)
 
     @ui.button(label="🔓 Request Unban", style=discord.ButtonStyle.primary)
-    async def request_unban(self, interaction: discord.Interaction, button: ui.Button):
-        if not allowed(interaction.user):
-            await interaction.response.defer()
+    async def request_unban(
+        self,
+        interaction: discord.Interaction,
+        button: ui.Button
+    ):
+        GUILD_ID = 1449298346425585768
+        user = interaction.user
+        guild = interaction.client.get_guild(GUILD_ID)
+
+        if guild is None:
+            await interaction.response.send_message(
+                "❌ Server not found.", ephemeral=True
+            )
             return
 
-        await interaction.response.send_message(
-            "📨 Unban request sent.", ephemeral=True
-        )
+        # OPTIONAL: restrict who can use this
+        if not allowed(user):
+            await interaction.response.send_message(
+                "⛔ You are not allowed to do this.", ephemeral=True
+            )
+            return
+
+        try:
+            await guild.unban(user)
+            await interaction.response.send_message(
+                "✅ You have been unbanned!", ephemeral=True
+            )
+
+        except discord.NotFound:
+            await interaction.response.send_message(
+                "❌ You are not banned.", ephemeral=True
+            )
+
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ Bot lacks permission to unban members.", ephemeral=True
+            )
+
+        except discord.HTTPException:
+            await interaction.response.send_message(
+                "❌ Something went wrong while unbanning you.", ephemeral=True
+            )
+)
 
 # ================= ANTI-BAN ALERT =================
 @bot.event
@@ -190,3 +225,4 @@ if not TOKEN:
 
 time.sleep(10)  # Railway / rate-limit safety
 bot.run(TOKEN)
+
