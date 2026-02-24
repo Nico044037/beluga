@@ -2,10 +2,7 @@ import os
 import discord
 from discord.ext import commands
 
-TOKEN = os.getenv("TOKEN")
-
-if not TOKEN:
-    raise ValueError("No TOKEN found in environment variables!")
+TOKEN = os.getenv("TOKEN")  # Railway environment variable
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,21 +13,23 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Bot is online as {bot.user} (ID: {bot.user.id})")
+    print(f"Bot is online as {bot.user}")
 
 @bot.event
 async def on_message(message: discord.Message):
+    # Ignore bots
     if message.author.bot:
         return
 
-    if message.guild is None:
+    # Ignore DMs
+    if not message.guild:
         return
 
     guild = message.guild
     owner = guild.owner
 
-    # Owner bypass
-    if owner and message.author.id == owner.id:
+    # OWNER BYPASS (important)
+    if message.author == owner:
         await bot.process_commands(message)
         return
 
@@ -43,7 +42,7 @@ async def on_message(message: discord.Message):
                 delete_after=5
             )
         except discord.Forbidden:
-            print("Missing permissions: Manage Messages")
+            pass
         return
 
     # Block pinging the owner
@@ -55,10 +54,9 @@ async def on_message(message: discord.Message):
                 delete_after=5
             )
         except discord.Forbidden:
-            print("Missing permissions: Manage Messages")
+            pass
         return
 
     await bot.process_commands(message)
 
-if __name__ == "__main__":
-    bot.run(TOKEN)
+bot.run(TOKEN)
