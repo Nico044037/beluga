@@ -20,18 +20,16 @@ async def on_ready():
 
 @bot.event
 async def on_message(message: discord.Message):
-    # Ignore bots
     if message.author.bot:
         return
 
-    # Ignore DMs
     if message.guild is None:
         return
 
     guild = message.guild
     owner = guild.owner
 
-    # OWNER BYPASS (important)
+    # Owner bypass
     if owner and message.author.id == owner.id:
         await bot.process_commands(message)
         return
@@ -62,4 +60,5 @@ async def on_message(message: discord.Message):
 
     await bot.process_commands(message)
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    bot.run(TOKEN)
