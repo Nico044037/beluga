@@ -46,7 +46,7 @@ async def on_message(message: discord.Message):
         try:
             await message.delete()
             await message.channel.send(
-                f"{message.author.mention}, you are NOT allowed to use @everyone or @here.",
+                f"{message.author.mention}, you are NOT allowed to ping everyone or here.",
                 delete_after=5
             )
         except discord.Forbidden:
