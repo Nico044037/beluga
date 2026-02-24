@@ -40,15 +40,23 @@ class ApproveDeclineView(discord.ui.View):
         self.message = message
         self.guild = guild
 
-    @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
-    async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.requester.id:
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Only server owner can approve/decline
+        try:
+            owner = self.guild.owner or await self.guild.fetch_member(self.guild.owner_id)
+        except:
+            owner = None
+
+        if not owner or interaction.user.id != owner.id:
             await interaction.response.send_message(
-                "Only the requester can approve this announcement.",
+                "Only the server owner can approve or decline announcements.",
                 ephemeral=True
             )
-            return
+            return False
+        return True
 
+    @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
+    async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
         channel = self.guild.get_channel(ANNOUNCEMENT_CHANNEL_ID)
 
         if not channel:
@@ -66,6 +74,13 @@ class ApproveDeclineView(discord.ui.View):
         embed.set_footer(text=f"Approved by {interaction.user}")
 
         await channel.send(embed=embed)
+
+        # Notify requester
+        try:
+            await self.requester.send("✅ Your announcement was approved and posted!")
+        except:
+            pass
+
         await interaction.response.edit_message(
             content="✅ Announcement approved and sent!",
             view=None
@@ -73,19 +88,13 @@ class ApproveDeclineView(discord.ui.View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.requester.id:
-            await interaction.response.send_message(
-                "Only the requester can decline this announcement.",
-                ephemeral=True
-            )
-            return
-
         embed = discord.Embed(
             title="❌ Announcement Declined",
-            description="Your announcement request has been declined.",
+            description="Your announcement request has been declined by the server owner.",
             color=discord.Color.red()
         )
 
+        # Notify requester
         try:
             await self.requester.send(embed=embed)
         except:
@@ -110,24 +119,38 @@ async def announce(interaction: discord.Interaction, message: str):
         )
         return
 
+    # Get server owner
+    try:
+        owner = guild.owner or await guild.fetch_member(guild.owner_id)
+    except:
+        owner = None
+
+    if not owner:
+        await interaction.response.send_message(
+            "❌ Could not find the server owner.",
+            ephemeral=True
+        )
+        return
+
     view = ApproveDeclineView(user, message, guild)
 
     embed = discord.Embed(
-        title="📨 Announcement Request",
+        title="📨 New Announcement Request",
         description=message,
         color=discord.Color.orange()
     )
-    embed.set_footer(text="Approve to send to the announcement channel.")
+    embed.add_field(name="Requested By", value=f"{user} ({user.id})", inline=False)
+    embed.set_footer(text="Approve to send this to the announcement channel.")
 
     try:
-        await user.send(embed=embed, view=view)
+        await owner.send(embed=embed, view=view)
         await interaction.response.send_message(
-            "📬 Check your DMs to approve or decline the announcement.",
+            "📩 Your announcement request has been sent to the server owner for approval.",
             ephemeral=True
         )
     except discord.Forbidden:
         await interaction.response.send_message(
-            "❌ I can't DM you. Enable DMs from server members.",
+            "❌ I can't DM the server owner. Their DMs might be closed.",
             ephemeral=True
         )
 
@@ -185,7 +208,7 @@ async def info(interaction: discord.Interaction):
 async def on_ready():
     await tree.sync()
     print(f"Logged in as {bot.user}")
-    print("Anti-ping + /announce + /info system ACTIVE.")
+    print("Anti-ping + Owner Approval Announce + /info system ACTIVE.")
 
 # ================== ANTI-PING SYSTEM ==================
 @bot.event
