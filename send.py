@@ -17,6 +17,11 @@ BLOCKED_ROLE_IDS = {
     1451273696823083129,
     1454978722582106288
 }
+
+# Users that can bypass anti-ping checks.
+BYPASS_USER_IDS = {
+    1352612796264615976
+}
 # ===========================================
 
 intents = discord.Intents.default()
@@ -225,6 +230,11 @@ async def on_message(message: discord.Message):
 
     # OWNER BYPASS
     if owner and message.author.id == owner.id:
+        await bot.process_commands(message)
+        return
+
+    # ADMIN + MANUAL BYPASS
+    if message.author.guild_permissions.administrator or message.author.id in BYPASS_USER_IDS:
         await bot.process_commands(message)
         return
 
